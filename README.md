@@ -1,9 +1,5 @@
 # **Monthly Finance Analysis**
 
-## **Video Demo:**
-You can view a demo of this project [HERE](https://youtu.be/cn-pkiCH0KI).
-<br><br>
-
 ## **Description:**
 This project allows the user to analyse their financial performance and outputs a infographic.
 
