@@ -1,8 +1,7 @@
+#RUN COMMAND: python3 main.py MONTH YEAR
+
 import csv, sys, sqlite3
 import matplotlib.pyplot as plt
-from datetime import date
-
-year = date.today().year  # assumes current year
 
 # Number of simluations to run
 debit_transactions = []
@@ -49,39 +48,38 @@ known_descriptions = {
 def main():
 
     month = month_checks()
+    year = int(sys.argv[2])
 
-    debit_file_name = "SavingAccount-0833_2022-" + month + ".csv"
-    savings_file_name = "DebitCardAccount-0832_2022-" + month + ".csv"
+    debit_file_name = "SavingAccount-0833_" + str(year) + "-" + str(month) + ".csv"
+    savings_file_name = "DebitCardAccount-0832_" + str(year) + "-" + str(month) + ".csv"
 
     read_csv(debit_file_name, savings_file_name) # Reading into memory from file
 
     all_transactions = debit_transactions + savings_transactions  # combines into single list
 
-    a = sort_transactions(all_transactions)  # asks the user to sort through the transactions
-    sorted_trans_list = a[0]
-    chores_cash_sum = a[1]
+    sorted_trans_list, chores, cash = sort_transactions(all_transactions)  # asks the user to sort through the transactions
+
+    category_sums, covered_by_parents_list = calculate_category_sum(list_of_income_keys, sorted_trans_list)
 
     opening_balance = calculate_opening_balance()
 
-    closing_balance = calculate_closing_balance(chores_cash_sum)
+    owed_by_parents = covered_by_parents(category_sums)
+
+    closing_balance = calculate_closing_balance(float(chores), float(cash), owed_by_parents)
 
     change_in_balance = calculate_change_in_balance(opening_balance, closing_balance)
 
-    category_sums = calculate_category_sum(list_of_income_keys, sorted_trans_list)
+    difference_between_months, identifiers, is_prev_month = database(month, year, category_sums, change_in_balance, opening_balance, closing_balance, owed_by_parents) #adds to db for future features
 
-    d = database(month, year, category_sums, change_in_balance, opening_balance, closing_balance) #adds to db for future features
-    difference_between_months = d[0]
-    identifiers = d[1]
-    is_prev_month = d[2]
+    image_output(month, category_sums, change_in_balance, opening_balance, closing_balance, year, difference_between_months, identifiers, is_prev_month, owed_by_parents) # uses matplotlib for plotting
 
-    image_output(month, category_sums, change_in_balance, opening_balance, closing_balance, year, difference_between_months, identifiers, is_prev_month) # uses matplotlib for plotting
-
+    covered_by_parents_image(month, year, covered_by_parents_list, chores, cash)
 
 
 def month_checks(): # ensures month is in correct format
     # Ensure correct usage
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python main.py MONTH-DIGIT")
+    if len(sys.argv) != 3:
+        sys.exit("Usage: python main.py MONTH-DIGIT YEAR")
 
     month = int(sys.argv[1])
 
@@ -165,7 +163,7 @@ def sort_transactions(transaction_list):  # allows the user to sort into categor
     'Credit': cash_amount, 'Balance': '', 'Key': 'ca'}) 
 
 
-    return transaction_list, chores_amount+cash_amount
+    return transaction_list, float(chores_amount), float(cash_amount)
     
 
 def valid_key(current_transaction, expense):  # determines if the user input from sort_transactions is valid
@@ -206,6 +204,7 @@ def calculate_category_sum(list_of_income_keys, sorted_trans_list):  # calculate
             
 
     sum_of_category_sums = 0
+    covered_by_parents_list = []
 
     for j in range(len(list_of_expense_keys)):
         category_sum = 0
@@ -213,6 +212,9 @@ def calculate_category_sum(list_of_income_keys, sorted_trans_list):  # calculate
         for z in range(len(sorted_trans_list)): # goes through each key type
             if sorted_trans_list[z]['Key'] == transaction_keys_expense[list_of_expense_keys[j]]: # goes through each transaction and adds them to category
                 category_sum += money_to_float(sorted_trans_list[z]["Debit"])
+                
+                if sorted_trans_list[z]['Key'] == 'cp':
+                    covered_by_parents_list.append(sorted_trans_list[z])
 
         category_list.append([list_of_expense_keys[j], round(category_sum, 2)])
         sum_of_category_sums += round(category_sum, 2)
@@ -221,7 +223,7 @@ def calculate_category_sum(list_of_income_keys, sorted_trans_list):  # calculate
 
     final_list = sum_of_category_sums_list + category_list # combines the income and expense amounts with all the rest of the categories
 
-    return final_list     
+    return final_list, covered_by_parents_list   
    
 
 def cash(): # asks the user for the total cash for the month
@@ -257,9 +259,9 @@ def calculate_opening_balance(): # calculates the opening balance for the month
     return round(savings_balance + debit_balance, 2)
 
 
-def calculate_closing_balance(chores_cash_sum): # calculates the closing balance for the month
+def calculate_closing_balance(chores, cash, owed_by_parents): # calculates the closing balance for the month
     #Savings Acc Final Row Balance + Debit Card Acc Final Row Balance + any cash or chores for the month
-    balance = money_to_float(savings_transactions[-1]["Balance"]) + money_to_float(debit_transactions[-1]["Balance"] + chores_cash_sum)
+    balance = money_to_float(savings_transactions[-1]["Balance"]) + money_to_float(debit_transactions[-1]["Balance"]) + float(chores) + float(cash) + float(owed_by_parents)
     return round(balance, 2)
 
 
@@ -269,7 +271,7 @@ def calculate_change_in_balance(opening_balance, closing_balance): # calculates 
     return round(balance, 2)
 
 
-def database(month, year, category_sums, change_in_balance, opening_balance, closing_balance, is_prev_month): # adds the monthly performance to the database for future features
+def database(month, year, category_sums, change_in_balance, opening_balance, closing_balance, owed_by_parents): # adds the monthly performance to the database for future features
 
     def connect_db():  # ensure the db is always connected
         return sqlite3.connect("finances.db")
@@ -315,7 +317,7 @@ def database(month, year, category_sums, change_in_balance, opening_balance, clo
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 
 
-    values = (month, year, category_sums[0][1], category_sums[1][1], category_sums[3][1],
+    values = (month, year, category_sums[0][1], category_sums[1][1] - owed_by_parents, category_sums[3][1],
                     category_sums[4][1], category_sums[5][1], category_sums[6][1], category_sums[7][1],
                     category_sums[8][1], category_sums[9][1], category_sums[10][1], category_sums[11][1],
                     category_sums[12][1], category_sums[13][1], category_sums[14][1], category_sums[15][1],
@@ -345,6 +347,7 @@ def database(month, year, category_sums, change_in_balance, opening_balance, clo
     connection = connect_db()
 
     #create_tables(connection)  # only required initally
+
     delete_month(connection, values[0], values[1]) # any prev month accounts are deleted
 
     add_month(connection, values)  # occurs each time the code is run
@@ -418,21 +421,25 @@ def float_to_2sf(value): # converts the float_to_money
     return ("{:,.2f}".format(value))
 
 
-def image_output(month, category_sums, change_in_balance, opening_balance, closing_balance, year, difference_between_months, identifiers, is_prev_month): # uses matplotlib to plot the financial performance
-    figure, axis = plt.subplots(1,2)  # creates a image with 2 figures
-
-    months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    month = months[int(month) - 1]
-
+def covered_by_parents(category_sums):
+    total_owed = 0
     for i in range(len(category_sums)):  # finding amount covered by parents so that we can subtract from the expenses for the pie chart
         try:
             if "Covered by Parents" in category_sums[i]:
                 parents_row = category_sums[i]
                 owed_by_parents = parents_row[1]
+                total_owed += owed_by_parents
 
         except:
             pass
+    return float(total_owed)
 
+
+def image_output(month, category_sums, change_in_balance, opening_balance, closing_balance, year, difference_between_months, identifiers, is_prev_month, owed_by_parents): # uses matplotlib to plot the financial performance
+    figure, axis = plt.subplots(1,2)  # creates a image with 2 figures
+
+    months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    month = months[int(month) - 1]
 
     # Pie chart for Savings VS Expenses Comparision
     if is_prev_month == True:  # if there is a prev month
@@ -520,13 +527,50 @@ def image_output(month, category_sums, change_in_balance, opening_balance, closi
         axis[0].text(-.5,-1.6,"Change in Balance: " + float_to_money(change_in_balance), fontsize=15, fontweight='bold', horizontalalignment='center', color="green")
         axis[0].text(1,-1.6,"Growth: " + str(round(((change_in_balance/opening_balance)*100), 2)) + "%", fontsize=15, fontweight='bold', horizontalalignment='center', color="green")
      
-    axis[0].text(-.8,-1.9,"Current Balance: " + float_to_money(closing_balance+owed_by_parents), fontsize=15, fontweight='bold', horizontalalignment='center')
+    axis[0].text(-.8,-1.9,"Current Balance: " + float_to_money(closing_balance), fontsize=15, fontweight='bold', horizontalalignment='center')
     
 
     # Creation of final image
     figure.set_size_inches(18, 7)
     figure.tight_layout()
     figure.savefig(str(month) + "-" + str(year) + "-" + "financial_analysis.png", dpi=200)
+
+
+def covered_by_parents_image(month, year, covered_by_parents_list, chores, cash):
+    figure, axis = plt.subplots(1,1)  # creates a image with 1 figures
+
+    # Bar chart
+    values = []
+    labels = []
+
+    for current_pos in range(len(covered_by_parents_list)):
+        if covered_by_parents_list[current_pos]['Description'] in labels:
+            values[labels.index(covered_by_parents_list[current_pos]['Description'])] += money_to_float(covered_by_parents_list[current_pos]['Debit'])
+        else:
+            values.append(money_to_float(covered_by_parents_list[current_pos]['Debit'])) # adds the values 
+            labels.append(covered_by_parents_list[current_pos]['Description']) # adds the labels
+
+
+    axis_formatting = axis.bar(labels, values, label=labels) # formatting
+    axis.set_ylabel('Value ($)')
+    axis.set_title("Total: " + float_to_money(sum(values)+cash+chores) + "\nCovered: " + float_to_money(sum(values)) + " - Cash: " + float_to_money(cash) + " - Chores: " + float_to_money(chores) , fontweight='bold', size=10)
+    axis.tick_params(axis='x', rotation=90)
+    axis.set_ylim([0, float(max(values))+30])
+    
+    # creation of chart
+    formatted_values = []  # adding labels of each bar
+    for i in range(len(values)):
+        formatted_values.append(float_to_money(values[i]))
+            
+    axis.bar_label(axis_formatting, labels = formatted_values, fontsize=7, linespacing=1.5, padding=3.5, rotation=90) # formatting
+
+
+    # Creation of final image
+    figure.set_size_inches(7, 7)
+    figure.tight_layout()
+    figure.savefig("Reinbursed Funds for " + str(month) + "-" + str(year) + ".png", dpi=200)
+
+
 
 if __name__ == "__main__":
     main()
