@@ -12,7 +12,7 @@ This information is stored to a database and an infographic is genereated contai
 - These are compared with the previous month to analyse a positive or negative performance
 <br><br>
 
-![Demo](https://i.ibb.co/xhDCBwZ/example.jpg)
+![Demo](https://i.ibb.co/Y23R1Jg/example.jpg)
 
 **Possible Future Feature Additions **
 - Long Term Financial Performance Figure
