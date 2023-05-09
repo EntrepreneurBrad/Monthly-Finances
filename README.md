@@ -1,6 +1,6 @@
-# **Monthly Finance Analysis**
+# Monthly Finance Analysis
 
-## **Description **
+## Description
 This project allows the user to analyse their financial performance and outputs a infographic.
 
 User's input csv files from their bank account, which are then able to be manually sorted (with automatic recognition of repeated transactions), while also accounting for any extra chores and/or cash.
@@ -14,12 +14,12 @@ This information is stored to a database and an infographic is genereated contai
 
 ![Demo](https://i.ibb.co/Y23R1Jg/example.jpg)
 
-**Possible Future Feature Additions **
+## Possible Future Feature Additions
 - Long Term Financial Performance Figure
 - More Financial Statistics
 <br><br>
 
-## **How It Works **
+## How It Works
 1. *python3 main.py [MONTH DIGIT]*
 2. The relevant CSV files are checked to be in the folder
 3. Each file is read into memory
@@ -36,7 +36,7 @@ This information is stored to a database and an infographic is genereated contai
 
 <br><br>
 
-## **Usage **
+## Usage
 1. Ensure the relevant CSV files are in the folder
 2. *python3 main.py [MONTH DIGIT]* <-- input month digit (i.e. June --> 6)
 3. Using the keys provided the user (manually) and program (automatically) sorts each transaction
@@ -47,7 +47,7 @@ This information is stored to a database and an infographic is genereated contai
 
 <br><br>
 
-## **Config **
+## Config
 **Required to install:**
 - CSV
 - SYS
@@ -60,7 +60,7 @@ This information is stored to a database and an infographic is genereated contai
 - *$ pip install matplotlib*
 <br><br>
 
-## **Credits **
+## Credits
 - Harvard University
     - Introduction to Computer Science ([CS50x](https://www.edx.org/course/introduction-computer-science-harvardx-cs50x)).
     - Introduction to Computer Science with Python ([CS50P](https://www.edx.org/course/cs50s-introduction-to-programming-with-python)).
@@ -70,7 +70,7 @@ This information is stored to a database and an infographic is genereated contai
 - *[matplotlib](https://matplotlib.org)* documentation
 <br><br>
 
-## **License **
+## License
 *MIT License*
 
 *Copyright (c) [2022] [EntrepreneurBrad]*
